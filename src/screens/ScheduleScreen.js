@@ -5,7 +5,7 @@ import {
   KeyboardAvoidingView, Platform, Linking
 } from 'react-native';
 import {
-  collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs, limit
+  collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { AuthContext } from '../context/AuthContext';
@@ -29,6 +29,7 @@ export default function ScheduleScreen() {
 
   // Search partner states
   const [partnerSearch, setPartnerSearch] = useState('');
+  const [allSystemUsers, setAllSystemUsers] = useState([]);
   const [partnerResults, setPartnerResults] = useState([]);
   const [selectedPartner, setSelectedPartner] = useState(null);
 
@@ -44,29 +45,31 @@ export default function ScheduleScreen() {
       setSchedules(list);
       setLoading(false);
     });
+
+    // Preload all users once for local partner search
+    getDocs(collection(db, 'users')).then(snap => {
+      const list = [];
+      snap.forEach(d => {
+        if (d.id !== user.uid) list.push({ uid: d.id, ...d.data() });
+      });
+      setAllSystemUsers(list);
+    }).catch(console.error);
+
     return unsub;
   }, []);
 
-  const searchUsers = async (text) => {
+  const searchUsers = (text) => {
     setPartnerSearch(text);
-    if (text.length < 2) {
+    if (text.trim().length < 1) {
       setPartnerResults([]);
       return;
     }
-    try {
-      const q = query(collection(db, 'users'), limit(5));
-      const snap = await getDocs(q);
-      const results = [];
-      snap.forEach(d => {
-        const u = d.data();
-        if (d.id !== user.uid && u.name?.toLowerCase().includes(text.toLowerCase())) {
-          results.push({ uid: d.id, ...u });
-        }
-      });
-      setPartnerResults(results);
-    } catch (e) {
-      console.error(e);
-    }
+    const q = text.toLowerCase();
+    const results = allSystemUsers.filter(u =>
+      (u.name || '').toLowerCase().includes(q) ||
+      (u.school || '').toLowerCase().includes(q)
+    ).slice(0, 5);
+    setPartnerResults(results);
   };
 
   const createSchedule = async () => {

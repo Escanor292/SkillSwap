@@ -24,7 +24,6 @@ export default function ScheduleScreen() {
   const [time, setTime] = useState('');
   const [mode, setMode] = useState('Online');
   const [location, setLocation] = useState('');
-  const [videoLink, setVideoLink] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -56,14 +55,13 @@ export default function ScheduleScreen() {
         time,
         mode,
         location: mode === 'Offline' ? location : '',
-        videoCallLink: mode === 'Online' ? videoLink : '',
         status: 'upcoming',
         createdAt: new Date().toISOString(),
       });
       Alert.alert('Thành công', 'Đã tạo lịch học!');
       setShowForm(false);
       setSkill(''); setPartnerName(''); setDate(''); setTime('');
-      setLocation(''); setVideoLink('');
+      setLocation('');
     } catch (e) {
       Alert.alert('Lỗi', e.message);
     } finally {
@@ -86,12 +84,13 @@ export default function ScheduleScreen() {
       </View>
       <Text style={styles.cardText}>👤 {item.partnerName || 'Chưa xác định'}</Text>
       <Text style={styles.cardText}>📅 {item.date} — ⏰ {item.time}</Text>
-      {item.mode === 'Online' && item.videoCallLink
+      {item.mode === 'Online'
         ? (
-          <TouchableOpacity onPress={() => openLink(item.videoCallLink)}>
-            <Text style={[styles.cardLink, { textDecorationLine: 'underline' }]}>
-              🔗 Tham gia: {item.videoCallLink}
-            </Text>
+          <TouchableOpacity 
+            style={styles.joinBtn} 
+            onPress={() => openLink(`https://meet.jit.si/SkillSwap_${item.id}`)}
+          >
+            <Text style={styles.joinBtnText}>📹 Vào buổi học ngay</Text>
           </TouchableOpacity>
         )
         : null}
@@ -210,6 +209,11 @@ const styles = StyleSheet.create({
   offline: { backgroundColor: '#FFF3E0' },
   modeText: { fontWeight: '600', fontSize: 12 },
   cardText: { fontSize: 14, color: colors.text, marginTop: 4 },
-  cardLink: { fontSize: 13, color: colors.secondary, marginTop: 4 },
+  joinBtn: {
+    backgroundColor: '#4CAF50', borderRadius: 8,
+    padding: 10, alignItems: 'center', marginTop: 12,
+    flexDirection: 'row', justifyContent: 'center',
+  },
+  joinBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   empty: { textAlign: 'center', color: colors.textLight, marginTop: 40, fontSize: 15 },
 });

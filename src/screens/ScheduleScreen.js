@@ -29,11 +29,12 @@ export default function ScheduleScreen() {
   useEffect(() => {
     const q = query(
       collection(db, 'schedules'),
-      where('userAId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userAId', '==', user.uid)
     );
     const unsub = onSnapshot(q, snap => {
-      setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setSchedules(list);
       setLoading(false);
     });
     return unsub;

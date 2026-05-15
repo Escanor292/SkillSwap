@@ -38,11 +38,12 @@ export default function ReviewScreen() {
     // Listen to reviews given by current user
     const q = query(
       collection(db, 'reviews'),
-      where('reviewerId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('reviewerId', '==', user.uid)
     );
     const unsub = onSnapshot(q, snap => {
-      setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setReviews(list);
       setLoading(false);
     });
     return unsub;

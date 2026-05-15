@@ -27,11 +27,12 @@ export default function ChatRoomScreen({ route, navigation }) {
   useEffect(() => {
     const q = query(
       collection(db, 'messages'),
-      where('chatId', '==', chatId),
-      orderBy('createdAt', 'asc')
+      where('chatId', '==', chatId)
     );
     const unsubscribe = onSnapshot(q, snap => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      msgs.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      setMessages(msgs);
     });
     return unsubscribe;
   }, [chatId]);

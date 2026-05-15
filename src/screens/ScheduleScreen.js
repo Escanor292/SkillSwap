@@ -140,12 +140,6 @@ export default function ScheduleScreen() {
               ))}
             </View>
 
-            {mode === 'Online' && (
-              <>
-                <Text style={styles.label}>Link video call</Text>
-                <TextInput style={styles.input} value={videoLink} onChangeText={setVideoLink} placeholder="https://meet.google.com/..." />
-              </>
-            )}
             {mode === 'Offline' && (
               <>
                 <Text style={styles.label}>Địa điểm</Text>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, Alert, ActivityIndicator
+  StyleSheet, Alert, ActivityIndicator, TextInput
 } from 'react-native';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -10,20 +10,20 @@ import { colors } from '../theme/colors';
 
 export default function MatchScreen({ navigation }) {
   const { user } = useContext(AuthContext);
-  const [matches, setMatches] = useState([]);
+  const [allMatches, setAllMatches] = useState([]);
+  const [filteredMatches, setFilteredMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   useEffect(() => { loadMatches(); }, []);
 
   const loadMatches = async () => {
     try {
-      // Get my skills
       const mySnap = await getDoc(doc(db, 'users', user.uid));
       const myData = mySnap.data() || {};
       const myLearn = (myData.skillsToLearn || []).map(s => s.toLowerCase());
       const myTeach = (myData.skillsToTeach || []).map(s => s.toLowerCase());
 
-      // Get all users
       const snapshot = await getDocs(collection(db, 'users'));
       const results = [];
 
@@ -33,18 +33,16 @@ export default function MatchScreen({ navigation }) {
         const otherTeach = (other.skillsToTeach || []).map(s => s.toLowerCase());
         const otherLearn = (other.skillsToLearn || []).map(s => s.toLowerCase());
 
-        // Match: other can teach something I want to learn
         const canTeachMe = otherTeach.some(s => myLearn.includes(s));
         if (!canTeachMe) return;
 
-        // 2-way: I can teach something they want to learn
         const isTwoWay = otherLearn.some(s => myTeach.includes(s));
         results.push({ ...other, uid: snap.id, isTwoWay });
       });
 
-      // Sort: 2-way first
       results.sort((a, b) => (b.isTwoWay ? 1 : 0) - (a.isTwoWay ? 1 : 0));
-      setMatches(results);
+      setAllMatches(results);
+      setFilteredMatches(results);
     } catch (e) {
       Alert.alert('Lỗi', e.message);
     } finally {
@@ -52,8 +50,19 @@ export default function MatchScreen({ navigation }) {
     }
   };
 
+  const handleSearch = (text) => {
+    setSearch(text);
+    if (!text) {
+      setFilteredMatches(allMatches);
+    } else {
+      const filtered = allMatches.filter(item => 
+        (item.name || '').toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredMatches(filtered);
+    }
+  };
+
   const openChat = async (otherUser) => {
-    // Chat ID = sorted UIDs joined
     const chatId = [user.uid, otherUser.uid].sort().join('_');
     try {
       await setDoc(doc(db, 'chats', chatId), {
@@ -102,14 +111,23 @@ export default function MatchScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {matches.length === 0 ? (
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Tìm kiếm theo tên..."
+          value={search}
+          onChangeText={handleSearch}
+        />
+      </View>
+
+      {filteredMatches.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Chưa tìm thấy người phù hợp</Text>
-          <Text style={styles.emptyText}>Hãy cập nhật kỹ năng trong hồ sơ của bạn!</Text>
+          <Text style={styles.emptyTitle}>Không tìm thấy kết quả</Text>
+          <Text style={styles.emptyText}>Thử tìm tên khác hoặc cập nhật lại hồ sơ nhé!</Text>
         </View>
       ) : (
         <FlatList
-          data={matches}
+          data={filteredMatches}
           keyExtractor={item => item.uid}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 16 }}
@@ -121,6 +139,14 @@ export default function MatchScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  searchContainer: {
+    padding: 16, backgroundColor: colors.surface,
+    borderBottomWidth: 1, borderBottomColor: colors.border
+  },
+  searchInput: {
+    backgroundColor: colors.background, padding: 12,
+    borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+  },
   card: {
     backgroundColor: colors.surface, borderRadius: 14, padding: 16,
     marginBottom: 14, borderWidth: 1, borderColor: colors.border, elevation: 2,

@@ -5,69 +5,100 @@ import {
   KeyboardAvoidingView, Platform
 } from 'react-native';
 import {
-  collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc
+  collection, addDoc, query, where, getDocs, onSnapshot
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
 
-// Star Rating component
-function StarRating({ rating, onRate }) {
-  return (
-    <View style={{ flexDirection: 'row', marginVertical: 8 }}>
-      {[1, 2, 3, 4, 5].map(star => (
-        <TouchableOpacity key={star} onPress={() => onRate && onRate(star)}>
-          <Text style={{ fontSize: 32, color: star <= rating ? '#FFC107' : '#ccc', marginRight: 4 }}>★</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
+const StarRating = ({ rating, onRate }) => (
+  <View style={styles.starRow}>
+    {[1, 2, 3, 4, 5].map(s => (
+      <TouchableOpacity key={s} onPress={() => onRate && onRate(s)}>
+        <Ionicons
+          name={s <= rating ? 'star' : 'star-outline'}
+          size={32}
+          color={s <= rating ? '#FFD93D' : colors.textLight}
+        />
+      </TouchableOpacity>
+    ))}
+  </View>
+);
 
 export default function ReviewScreen() {
   const { user } = useContext(AuthContext);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [receiverName, setReceiverName] = useState('');
+  const [partners, setPartners] = useState([]); // List of people you've studied with
+
+  // Form states
+  const [selectedPartner, setSelectedPartner] = useState(null);
   const [skill, setSkill] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Listen to reviews given by current user
-    const q = query(
-      collection(db, 'reviews'),
-      where('reviewerId', '==', user.uid)
-    );
+    // 1. Listen for ALL reviews to display on the wall
+    const q = query(collection(db, 'reviews'));
     const unsub = onSnapshot(q, snap => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setReviews(list);
       setLoading(false);
     });
+
+    loadPartners();
     return unsub;
   }, []);
 
+  const loadPartners = async () => {
+    try {
+      // Find all accepted schedules involving the current user
+      const q = query(
+        collection(db, 'schedules'),
+        where('participants', 'array-contains', user.uid),
+        where('status', '==', 'accepted')
+      );
+      const snap = await getDocs(q);
+      const uniquePartners = new Map();
+
+      snap.forEach(d => {
+        const data = d.data();
+        const partnerId = data.creatorId === user.uid ? data.partnerId : data.creatorId;
+        const partnerName = data.creatorId === user.uid ? data.partnerName : data.creatorName;
+        if (partnerId && partnerName) {
+          uniquePartners.set(partnerId, { uid: partnerId, name: partnerName });
+        }
+      });
+      setPartners(Array.from(uniquePartners.values()));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const submitReview = async () => {
-    if (!receiverName || !comment) {
-      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ tên và nhận xét');
+    if (!selectedPartner || !skill || !comment) {
+      Alert.alert('Lỗi', 'Vui lòng chọn bạn học và điền đầy đủ nhận xét');
       return;
     }
     setSaving(true);
     try {
       await addDoc(collection(db, 'reviews'), {
-        reviewerId: user.uid,
-        receiverName,
+        senderId: user.uid,
+        senderName: (user.email || '').split('@')[0],
+        receiverId: selectedPartner.uid,
+        receiverName: selectedPartner.name,
         skill,
         rating,
         comment,
         createdAt: new Date().toISOString(),
       });
-      Alert.alert('Thành công', 'Đánh giá đã được gửi!');
+      Alert.alert('Thành công', 'Cảm ơn bạn đã gửi đánh giá!');
       setShowForm(false);
-      setReceiverName(''); setSkill(''); setRating(5); setComment('');
+      setSkill(''); setComment(''); setRating(5); setSelectedPartner(null);
     } catch (e) {
       Alert.alert('Lỗi', e.message);
     } finally {
@@ -75,48 +106,62 @@ export default function ReviewScreen() {
     }
   };
 
-  const renderStars = (r) => '★'.repeat(r) + '☆'.repeat(5 - r);
-
   const renderReview = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardName}>{item.receiverName}</Text>
-        <Text style={styles.stars}>{renderStars(item.rating)}</Text>
+        <Text style={styles.reviewer}>{item.senderName} ➜ {item.receiverName}</Text>
+        <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
       </View>
-      {item.skill ? <Text style={styles.skill}>Kỹ năng: {item.skill}</Text> : null}
-      <Text style={styles.comment}>"{item.comment}"</Text>
-      <Text style={styles.date}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : ''}</Text>
+      <Text style={styles.reviewSkill}>Kỹ năng: {item.skill}</Text>
+      <StarRating rating={item.rating} />
+      <Text style={styles.comment}>{item.comment}</Text>
     </View>
   );
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.container}>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
-          <Text style={styles.addBtnText}>{showForm ? '✕ Đóng' : '+ Viết đánh giá'}</Text>
+        <TouchableOpacity 
+          style={styles.addBtn} 
+          onPress={() => {
+            if (partners.length === 0) {
+              Alert.alert('Thông báo', 'Bạn cần hoàn thành ít nhất một buổi học để có thể viết đánh giá!');
+            } else {
+              setShowForm(!showForm);
+            }
+          }}
+        >
+          <Text style={styles.addBtnText}>{showForm ? '✕ Đóng' : '+ Viết đánh giá mới'}</Text>
         </TouchableOpacity>
 
         {showForm && (
           <ScrollView style={styles.form}>
-            <Text style={styles.label}>Tên người được đánh giá</Text>
-            <TextInput style={styles.input} value={receiverName} onChangeText={setReceiverName} placeholder="Nhập tên" />
+            <Text style={styles.label}>Chọn người bạn đã học cùng</Text>
+            <View style={styles.partnerRow}>
+              {partners.map(p => (
+                <TouchableOpacity 
+                  key={p.uid} 
+                  style={[styles.partnerChip, selectedPartner?.uid === p.uid && styles.activeChip]}
+                  onPress={() => setSelectedPartner(p)}
+                >
+                  <Text style={[styles.chipText, selectedPartner?.uid === p.uid && { color: '#fff' }]}>{p.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-            <Text style={styles.label}>Kỹ năng đã trao đổi</Text>
-            <TextInput style={styles.input} value={skill} onChangeText={setSkill} placeholder="VD: Guitar, Python..." />
+            <Text style={styles.label}>Kỹ năng đã học/dạy</Text>
+            <TextInput style={styles.input} value={skill} onChangeText={setSkill} placeholder="VD: Guitar, Tiếng Anh..." />
 
-            <Text style={styles.label}>Xếp hạng</Text>
+            <Text style={styles.label}>Xếp hạng mức độ hài lòng</Text>
             <StarRating rating={rating} onRate={setRating} />
 
-            <Text style={styles.label}>Nhận xét</Text>
+            <Text style={styles.label}>Nhận xét chi tiết</Text>
             <TextInput
               style={[styles.input, styles.multiline]}
               value={comment} onChangeText={setComment}
-              placeholder="Viết nhận xét của bạn..."
+              placeholder="Chia sẻ trải nghiệm của bạn..."
               multiline numberOfLines={4}
             />
 
@@ -131,9 +176,8 @@ export default function ReviewScreen() {
           keyExtractor={i => i.id}
           renderItem={renderReview}
           contentContainerStyle={{ padding: 16 }}
-          ListEmptyComponent={
-            <Text style={styles.empty}>Chưa có đánh giá nào. Hãy viết đánh giá đầu tiên!</Text>
-          }
+          ListHeaderComponent={<Text style={styles.listHeader}>Cộng đồng đánh giá</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>Chưa có đánh giá nào.</Text>}
         />
       </View>
     </KeyboardAvoidingView>
@@ -142,32 +186,25 @@ export default function ReviewScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  addBtn: {
-    backgroundColor: colors.primary, margin: 16, padding: 14,
-    borderRadius: 12, alignItems: 'center',
-  },
+  addBtn: { backgroundColor: colors.primary, margin: 16, padding: 14, borderRadius: 12, alignItems: 'center' },
   addBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  form: { backgroundColor: colors.surface, paddingHorizontal: 16, paddingBottom: 10 },
+  form: { backgroundColor: colors.surface, paddingHorizontal: 16, paddingBottom: 10, maxHeight: 450 },
   label: { fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 12, marginBottom: 5 },
-  input: {
-    backgroundColor: colors.background, padding: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border, fontSize: 14,
-  },
-  multiline: { height: 100, textAlignVertical: 'top' },
-  saveBtn: {
-    backgroundColor: colors.secondary, padding: 14, borderRadius: 12,
-    alignItems: 'center', marginVertical: 14,
-  },
+  partnerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  partnerChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+  activeChip: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, color: colors.text },
+  input: { backgroundColor: colors.background, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, fontSize: 14 },
+  multiline: { height: 80, textAlignVertical: 'top' },
+  starRow: { flexDirection: 'row', gap: 5, marginVertical: 8 },
+  saveBtn: { backgroundColor: colors.secondary, padding: 14, borderRadius: 12, alignItems: 'center', marginVertical: 14 },
   saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
-  card: {
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16,
-    marginBottom: 12, borderWidth: 1, borderColor: colors.border, elevation: 2,
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardName: { fontSize: 16, fontWeight: 'bold', color: colors.text },
-  stars: { fontSize: 18, color: '#FFC107' },
-  skill: { fontSize: 13, color: colors.secondary, marginTop: 4 },
-  comment: { fontSize: 14, color: colors.text, fontStyle: 'italic', marginTop: 6 },
-  date: { fontSize: 11, color: colors.textLight, marginTop: 6 },
-  empty: { textAlign: 'center', color: colors.textLight, marginTop: 40, fontSize: 15 },
+  listHeader: { fontSize: 18, fontWeight: 'bold', color: colors.text, marginBottom: 10 },
+  card: { backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 12, elevation: 2 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  reviewer: { fontWeight: 'bold', color: colors.primary, fontSize: 14 },
+  date: { fontSize: 11, color: colors.textLight },
+  reviewSkill: { fontSize: 13, color: colors.secondary, fontWeight: '600', marginBottom: 5 },
+  comment: { fontSize: 14, color: colors.text, marginTop: 5, fontStyle: 'italic' },
+  empty: { textAlign: 'center', color: colors.textLight, marginTop: 40 },
 });

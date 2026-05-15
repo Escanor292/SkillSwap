@@ -13,6 +13,7 @@ export default function HomeScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({ skills: 0, schedules: 0, rating: 5.0 });
   const [loading, setLoading] = useState(true);
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
 
   useEffect(() => { 
     loadData();
@@ -21,17 +22,24 @@ export default function HomeScreen({ navigation }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      // 1. Load Stats
+      // 1. Load User Info & Stats
       const userSnap = await getDoc(doc(db, 'users', user.uid));
       const userData = userSnap.data() || {};
-      const skillCount = (userData.skillsToTeach || []).length;
+      
+      // Check if profile is incomplete
+      if (!userData.name || !userData.skillsToTeach || userData.skillsToTeach.length === 0) {
+        setProfileIncomplete(true);
+      } else {
+        setProfileIncomplete(false);
+      }
 
-      const scheduleSnap = await getDocs(query(collection(db, 'schedules'), where('userAId', '==', user.uid)));
+      const skillCount = (userData.skillsToTeach || []).length;
+      const scheduleSnap = await getDocs(query(collection(db, 'schedules'), where('participants', 'array-contains', user.uid)));
       
       setStats({
         skills: skillCount,
         schedules: scheduleSnap.size,
-        rating: 5.0 // Default or calculate if you have review data
+        rating: 5.0
       });
 
       // 2. Load Random Users
@@ -97,6 +105,20 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.welcome}>Chào mừng, {(user.email || '').split('@')[0]}!</Text>
             <Text style={styles.subtitle}>Hôm nay bạn muốn học gì mới không?</Text>
             
+            {profileIncomplete && (
+              <TouchableOpacity 
+                style={styles.warningBanner}
+                onPress={() => navigation.navigate('Cá nhân')}
+              >
+                <Ionicons name="warning" size={20} color="#fff" />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.warningTitle}>Hồ sơ chưa hoàn thiện!</Text>
+                  <Text style={styles.warningText}>Cập nhật kỹ năng để bắt đầu ghép cặp ngay.</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+
             <View style={styles.statsRow}>
               {renderStatCard('book', 'Kỹ năng dạy', stats.skills, '#6C63FF')}
               {renderStatCard('calendar', 'Lịch học', stats.schedules, '#FF6B6B')}
@@ -117,6 +139,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   welcome: { fontSize: 24, fontWeight: 'bold', color: colors.text, paddingHorizontal: 0, marginTop: 20 },
   subtitle: { fontSize: 15, color: colors.textLight, marginBottom: 20 },
+  warningBanner: {
+    backgroundColor: '#FF6B6B', padding: 15, borderRadius: 12,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 20,
+    elevation: 4, shadowColor: '#FF6B6B', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 5,
+  },
+  warningTitle: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  warningText: { color: '#fff', fontSize: 12, opacity: 0.9 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25, gap: 10 },
   statCard: {
     flex: 1, backgroundColor: colors.surface, padding: 12, borderRadius: 12,

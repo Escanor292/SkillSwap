@@ -1,5 +1,9 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, Alert, KeyboardAvoidingView, Platform,
+  TouchableWithoutFeedback, Keyboard
+} from 'react-native';
 import { colors } from '../theme/colors';
 import { AuthContext } from '../context/AuthContext';
 
@@ -23,34 +27,41 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>SkillSwap</Text>
-      <Text style={styles.subtitle}>Chào mừng trở lại!</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
+          <Text style={styles.title}>SkillSwap</Text>
+          <Text style={styles.subtitle}>Chào mừng trở lại!</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Mật khẩu"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Mật khẩu"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Đăng nhập</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={handleLogin}>
+            <Text style={styles.buttonText}>Đăng nhập</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.linkText}>Chưa có tài khoản? Đăng ký</Text>
-      </TouchableOpacity>
-    </View>
+          <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.linkText}>Chưa có tài khoản? Đăng ký</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 

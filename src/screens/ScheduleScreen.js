@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, FlatList, Alert, ActivityIndicator
+  ScrollView, FlatList, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform
 } from 'react-native';
 import {
   collection, addDoc, query, where, onSnapshot, orderBy
@@ -92,68 +93,73 @@ export default function ScheduleScreen() {
   if (loading) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
 
   return (
-    <View style={styles.container}>
-      {/* Add button */}
-      <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
-        <Text style={styles.addBtnText}>{showForm ? '✕ Đóng' : '+ Tạo lịch học'}</Text>
-      </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.container}>
+        {/* Add button */}
+        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
+          <Text style={styles.addBtnText}>{showForm ? '✕ Đóng' : '+ Tạo lịch học'}</Text>
+        </TouchableOpacity>
 
-      {showForm && (
-        <ScrollView style={styles.form}>
-          <Text style={styles.label}>Kỹ năng trao đổi</Text>
-          <TextInput style={styles.input} value={skill} onChangeText={setSkill} placeholder="VD: Guitar, Python..." />
+        {showForm && (
+          <ScrollView style={styles.form}>
+            <Text style={styles.label}>Kỹ năng trao đổi</Text>
+            <TextInput style={styles.input} value={skill} onChangeText={setSkill} placeholder="VD: Guitar, Python..." />
 
-          <Text style={styles.label}>Tên người cùng học</Text>
-          <TextInput style={styles.input} value={partnerName} onChangeText={setPartnerName} placeholder="Nhập tên" />
+            <Text style={styles.label}>Tên người cùng học</Text>
+            <TextInput style={styles.input} value={partnerName} onChangeText={setPartnerName} placeholder="Nhập tên" />
 
-          <Text style={styles.label}>Ngày (DD/MM/YYYY)</Text>
-          <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="VD: 20/05/2026" />
+            <Text style={styles.label}>Ngày (DD/MM/YYYY)</Text>
+            <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="VD: 20/05/2026" />
 
-          <Text style={styles.label}>Giờ (HH:MM)</Text>
-          <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder="VD: 14:30" />
+            <Text style={styles.label}>Giờ (HH:MM)</Text>
+            <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder="VD: 14:30" />
 
-          <Text style={styles.label}>Hình thức</Text>
-          <View style={styles.modeRow}>
-            {MODES.map(m => (
-              <TouchableOpacity
-                key={m}
-                style={[styles.modeOption, mode === m && styles.modeActive]}
-                onPress={() => setMode(m)}
-              >
-                <Text style={[styles.modeOptionText, mode === m && { color: '#fff' }]}>{m}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            <Text style={styles.label}>Hình thức</Text>
+            <View style={styles.modeRow}>
+              {MODES.map(m => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.modeOption, mode === m && styles.modeActive]}
+                  onPress={() => setMode(m)}
+                >
+                  <Text style={[styles.modeOptionText, mode === m && { color: '#fff' }]}>{m}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          {mode === 'Online' && (
-            <>
-              <Text style={styles.label}>Link video call</Text>
-              <TextInput style={styles.input} value={videoLink} onChangeText={setVideoLink} placeholder="https://meet.google.com/..." />
-            </>
-          )}
-          {mode === 'Offline' && (
-            <>
-              <Text style={styles.label}>Địa điểm</Text>
-              <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="VD: Thư viện trường, Café A..." />
-            </>
-          )}
+            {mode === 'Online' && (
+              <>
+                <Text style={styles.label}>Link video call</Text>
+                <TextInput style={styles.input} value={videoLink} onChangeText={setVideoLink} placeholder="https://meet.google.com/..." />
+              </>
+            )}
+            {mode === 'Offline' && (
+              <>
+                <Text style={styles.label}>Địa điểm</Text>
+                <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="VD: Thư viện trường, Café A..." />
+              </>
+            )}
 
-          <TouchableOpacity style={styles.saveBtn} onPress={createSchedule} disabled={saving}>
-            <Text style={styles.saveBtnText}>{saving ? 'Đang lưu...' : 'Tạo lịch'}</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
+            <TouchableOpacity style={styles.saveBtn} onPress={createSchedule} disabled={saving}>
+              <Text style={styles.saveBtnText}>{saving ? 'Đang lưu...' : 'Tạo lịch'}</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
 
-      <FlatList
-        data={schedules}
-        keyExtractor={i => i.id}
-        renderItem={renderSchedule}
-        contentContainerStyle={{ padding: 16 }}
-        ListEmptyComponent={
-          <Text style={styles.empty}>Chưa có lịch học nào. Hãy tạo lịch học đầu tiên!</Text>
-        }
-      />
-    </View>
+        <FlatList
+          data={schedules}
+          keyExtractor={i => i.id}
+          renderItem={renderSchedule}
+          contentContainerStyle={{ padding: 16 }}
+          ListEmptyComponent={
+            <Text style={styles.empty}>Chưa có lịch học nào. Hãy tạo lịch học đầu tiên!</Text>
+          }
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

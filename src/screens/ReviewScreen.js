@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ActivityIndicator, ScrollView
+  StyleSheet, Alert, ActivityIndicator, ScrollView,
+  KeyboardAvoidingView, Platform
 } from 'react-native';
 import {
   collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc
@@ -91,46 +92,51 @@ export default function ReviewScreen() {
   if (loading) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
-        <Text style={styles.addBtnText}>{showForm ? '✕ Đóng' : '+ Viết đánh giá'}</Text>
-      </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(!showForm)}>
+          <Text style={styles.addBtnText}>{showForm ? '✕ Đóng' : '+ Viết đánh giá'}</Text>
+        </TouchableOpacity>
 
-      {showForm && (
-        <ScrollView style={styles.form}>
-          <Text style={styles.label}>Tên người được đánh giá</Text>
-          <TextInput style={styles.input} value={receiverName} onChangeText={setReceiverName} placeholder="Nhập tên" />
+        {showForm && (
+          <ScrollView style={styles.form}>
+            <Text style={styles.label}>Tên người được đánh giá</Text>
+            <TextInput style={styles.input} value={receiverName} onChangeText={setReceiverName} placeholder="Nhập tên" />
 
-          <Text style={styles.label}>Kỹ năng đã trao đổi</Text>
-          <TextInput style={styles.input} value={skill} onChangeText={setSkill} placeholder="VD: Guitar, Python..." />
+            <Text style={styles.label}>Kỹ năng đã trao đổi</Text>
+            <TextInput style={styles.input} value={skill} onChangeText={setSkill} placeholder="VD: Guitar, Python..." />
 
-          <Text style={styles.label}>Xếp hạng</Text>
-          <StarRating rating={rating} onRate={setRating} />
+            <Text style={styles.label}>Xếp hạng</Text>
+            <StarRating rating={rating} onRate={setRating} />
 
-          <Text style={styles.label}>Nhận xét</Text>
-          <TextInput
-            style={[styles.input, styles.multiline]}
-            value={comment} onChangeText={setComment}
-            placeholder="Viết nhận xét của bạn..."
-            multiline numberOfLines={4}
-          />
+            <Text style={styles.label}>Nhận xét</Text>
+            <TextInput
+              style={[styles.input, styles.multiline]}
+              value={comment} onChangeText={setComment}
+              placeholder="Viết nhận xét của bạn..."
+              multiline numberOfLines={4}
+            />
 
-          <TouchableOpacity style={styles.saveBtn} onPress={submitReview} disabled={saving}>
-            <Text style={styles.saveBtnText}>{saving ? 'Đang gửi...' : 'Gửi đánh giá'}</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
+            <TouchableOpacity style={styles.saveBtn} onPress={submitReview} disabled={saving}>
+              <Text style={styles.saveBtnText}>{saving ? 'Đang gửi...' : 'Gửi đánh giá'}</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
 
-      <FlatList
-        data={reviews}
-        keyExtractor={i => i.id}
-        renderItem={renderReview}
-        contentContainerStyle={{ padding: 16 }}
-        ListEmptyComponent={
-          <Text style={styles.empty}>Chưa có đánh giá nào. Hãy viết đánh giá đầu tiên!</Text>
-        }
-      />
-    </View>
+        <FlatList
+          data={reviews}
+          keyExtractor={i => i.id}
+          renderItem={renderReview}
+          contentContainerStyle={{ padding: 16 }}
+          ListEmptyComponent={
+            <Text style={styles.empty}>Chưa có đánh giá nào. Hãy viết đánh giá đầu tiên!</Text>
+          }
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

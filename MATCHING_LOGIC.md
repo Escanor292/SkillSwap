@@ -38,3 +38,8 @@ Hệ thống sẽ gợi ý người dùng **B** cho người dùng **A** nếu:
 - **Tiết kiệm chi phí**: Trao đổi kỹ năng thay vì trả tiền thuê gia sư.
 - **Tính cam kết cao**: Khi cả hai cùng có lợi, buổi học sẽ diễn ra nghiêm túc và hiệu quả hơn.
 - **Mở rộng mối quan hệ**: Giúp sinh viên tìm thấy những người bạn có cùng đam mê và trình độ phù hợp.
+## 5. Cơ chế Trao đổi Online (Video Call)
+Để tối ưu hóa trải nghiệm mà không làm nặng ứng dụng, SkillSwap tích hợp cơ chế "External Meeting":
+- **Linh hoạt**: Người dùng có thể sử dụng bất kỳ nền tảng nào họ thích (Google Meet, Zoom, Microsoft Teams, Zalo...).
+- **Tự động hóa**: Khi tạo lịch học Online, người dùng dán link phòng họp vào. Hệ thống sẽ biến nó thành một liên kết có thể nhấp vào (Hyperlink).
+- **Trải nghiệm mượt mà**: Đến giờ học, người tham gia chỉ cần vào mục "Lịch học" và bấm vào link, ứng dụng sẽ tự động chuyển hướng sang nền tảng Video Call tương ứng.

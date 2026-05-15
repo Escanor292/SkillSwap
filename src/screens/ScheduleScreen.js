@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, FlatList, Alert, ActivityIndicator,
-  KeyboardAvoidingView, Platform
+  KeyboardAvoidingView, Platform, Linking
 } from 'react-native';
 import {
   collection, addDoc, query, where, onSnapshot, orderBy
@@ -71,6 +70,11 @@ export default function ScheduleScreen() {
     }
   };
 
+  const openLink = (url) => {
+    if (!url) return;
+    Linking.openURL(url).catch(err => Alert.alert('Lỗi', 'Không thể mở liên kết này'));
+  };
+
   const renderSchedule = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -82,7 +86,13 @@ export default function ScheduleScreen() {
       <Text style={styles.cardText}>👤 {item.partnerName || 'Chưa xác định'}</Text>
       <Text style={styles.cardText}>📅 {item.date} — ⏰ {item.time}</Text>
       {item.mode === 'Online' && item.videoCallLink
-        ? <Text style={styles.cardLink}>🔗 {item.videoCallLink}</Text>
+        ? (
+          <TouchableOpacity onPress={() => openLink(item.videoCallLink)}>
+            <Text style={[styles.cardLink, { textDecorationLine: 'underline' }]}>
+              🔗 Tham gia: {item.videoCallLink}
+            </Text>
+          </TouchableOpacity>
+        )
         : null}
       {item.mode === 'Offline' && item.location
         ? <Text style={styles.cardText}>📍 {item.location}</Text>

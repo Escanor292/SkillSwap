@@ -108,7 +108,7 @@ export default function HomeScreen({ navigation }) {
             {profileIncomplete && (
               <TouchableOpacity 
                 style={styles.warningBanner}
-                onPress={() => navigation.navigate('Cá nhân')}
+                onPress={() => navigation.navigate('Profile')}
               >
                 <Ionicons name="warning" size={20} color="#fff" />
                 <View style={{ flex: 1, marginLeft: 10 }}>

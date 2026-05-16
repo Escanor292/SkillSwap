@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, FlatList, Alert, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Linking
+  KeyboardAvoidingView, Platform, Linking, Modal
 } from 'react-native';
 import {
   collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs
@@ -21,8 +21,12 @@ export default function ScheduleScreen() {
   
   // Form states
   const [skill, setSkill] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [dateText, setDateText] = useState('');
+  const [timeText, setTimeText] = useState('');
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
   const [mode, setMode] = useState('Online');
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
@@ -72,8 +76,96 @@ export default function ScheduleScreen() {
     setPartnerResults(results);
   };
 
+  const formatDate = (date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const formatTime = (date) => {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  const getDaysInMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const selectDate = (day, month, year) => {
+    const newDate = new Date(year, month - 1, day);
+    setSelectedDate(newDate);
+    setDateText(formatDate(newDate));
+    setShowDateModal(false);
+  };
+
+  const selectTime = (hours, minutes) => {
+    const newTime = new Date();
+    newTime.setHours(hours);
+    newTime.setMinutes(minutes);
+    setSelectedTime(newTime);
+    setTimeText(formatTime(newTime));
+    setShowTimeModal(false);
+  };
+
+  const parseDateText = () => {
+    if (!dateText.trim()) {
+      setDateText(formatDate(selectedDate));
+      return;
+    }
+    
+    const parts = dateText.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      const year = parseInt(parts[2]);
+      
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year) && 
+          day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2024) {
+        const newDate = new Date(year, month - 1, day);
+        setSelectedDate(newDate);
+        setDateText(formatDate(newDate));
+      } else {
+        Alert.alert('Lỗi', 'Ngày không hợp lệ. Vui lòng nhập theo định dạng DD/MM/YYYY');
+        setDateText(formatDate(selectedDate));
+      }
+    } else {
+      Alert.alert('Lỗi', 'Vui lòng nhập theo định dạng DD/MM/YYYY (VD: 20/05/2026)');
+      setDateText(formatDate(selectedDate));
+    }
+  };
+
+  const parseTimeText = () => {
+    if (!timeText.trim()) {
+      setTimeText(formatTime(selectedTime));
+      return;
+    }
+    
+    const parts = timeText.split(':');
+    if (parts.length === 2) {
+      const hours = parseInt(parts[0]);
+      const minutes = parseInt(parts[1]);
+      
+      if (!isNaN(hours) && !isNaN(minutes) && 
+          hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        const newTime = new Date(selectedTime);
+        newTime.setHours(hours);
+        newTime.setMinutes(minutes);
+        setSelectedTime(newTime);
+        setTimeText(formatTime(newTime));
+      } else {
+        Alert.alert('Lỗi', 'Giờ không hợp lệ. Vui lòng nhập theo định dạng HH:MM (00-23:00-59)');
+        setTimeText(formatTime(selectedTime));
+      }
+    } else {
+      Alert.alert('Lỗi', 'Vui lòng nhập theo định dạng HH:MM (VD: 14:30)');
+      setTimeText(formatTime(selectedTime));
+    }
+  };
+
   const createSchedule = async () => {
-    if (!skill || !date || !time || !selectedPartner) {
+    if (!skill || !selectedPartner) {
       Alert.alert('Lỗi', 'Vui lòng điền đủ thông tin và chọn bạn học');
       return;
     }
@@ -86,8 +178,8 @@ export default function ScheduleScreen() {
         partnerName: selectedPartner.name,
         participants: [user.uid, selectedPartner.uid],
         skill,
-        date,
-        time,
+        date: formatDate(selectedDate),
+        time: formatTime(selectedTime),
         mode,
         location: mode === 'Offline' ? location : '',
         status: 'pending', // Important: status is pending initially
@@ -104,8 +196,16 @@ export default function ScheduleScreen() {
   };
 
   const resetForm = () => {
-    setSkill(''); setDate(''); setTime(''); setLocation('');
-    setPartnerSearch(''); setPartnerResults([]); setSelectedPartner(null);
+    setSkill(''); 
+    const now = new Date();
+    setSelectedDate(now);
+    setSelectedTime(now);
+    setDateText(formatDate(now));
+    setTimeText(formatTime(now));
+    setLocation('');
+    setPartnerSearch(''); 
+    setPartnerResults([]); 
+    setSelectedPartner(null);
   };
 
   const updateStatus = async (id, newStatus) => {
@@ -209,11 +309,43 @@ export default function ScheduleScreen() {
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Ngày</Text>
-                <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="20/05/2026" />
+                <TouchableOpacity 
+                  style={styles.dateTimeButton} 
+                  onPress={() => setShowDateModal(true)}
+                >
+                  <Text style={styles.dateTimeText}>📅 Chọn từ danh sách</Text>
+                </TouchableOpacity>
+                <TextInput 
+                  style={[styles.input, { marginTop: 8 }]}
+                  value={dateText}
+                  onChangeText={setDateText}
+                  onFocus={() => {
+                    if (!dateText) setDateText(formatDate(selectedDate));
+                  }}
+                  onBlur={parseDateText}
+                  placeholder="DD/MM/YYYY (VD: 20/05/2026)"
+                  keyboardType="numbers-and-punctuation"
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Giờ</Text>
-                <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder="14:30" />
+                <TouchableOpacity 
+                  style={styles.dateTimeButton} 
+                  onPress={() => setShowTimeModal(true)}
+                >
+                  <Text style={styles.dateTimeText}>⏰ Chọn từ danh sách</Text>
+                </TouchableOpacity>
+                <TextInput 
+                  style={[styles.input, { marginTop: 8 }]}
+                  value={timeText}
+                  onChangeText={setTimeText}
+                  onFocus={() => {
+                    if (!timeText) setTimeText(formatTime(selectedTime));
+                  }}
+                  onBlur={parseTimeText}
+                  placeholder="HH:MM (VD: 14:30)"
+                  keyboardType="numbers-and-punctuation"
+                />
               </View>
             </View>
 
@@ -244,6 +376,61 @@ export default function ScheduleScreen() {
           ListHeaderComponent={<Text style={styles.listHeader}>Danh sách lịch học & Lời mời</Text>}
           ListEmptyComponent={<Text style={styles.empty}>Chưa có lịch học nào.</Text>}
         />
+
+        {/* Date Picker Modal */}
+        <Modal visible={showDateModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Chọn ngày</Text>
+              <ScrollView style={{ maxHeight: 300 }}>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                  <TouchableOpacity
+                    key={day}
+                    style={styles.modalItem}
+                    onPress={() => {
+                      const today = new Date();
+                      selectDate(day, today.getMonth() + 1, today.getFullYear());
+                    }}
+                  >
+                    <Text style={styles.modalItemText}>
+                      {String(day).padStart(2, '0')}/{String(new Date().getMonth() + 1).padStart(2, '0')}/{new Date().getFullYear()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowDateModal(false)}>
+                <Text style={styles.modalCloseBtnText}>Đóng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Time Picker Modal */}
+        <Modal visible={showTimeModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Chọn giờ</Text>
+              <ScrollView style={{ maxHeight: 300 }}>
+                {Array.from({ length: 24 }, (_, h) => 
+                  [0, 30].map(m => (
+                    <TouchableOpacity
+                      key={`${h}-${m}`}
+                      style={styles.modalItem}
+                      onPress={() => selectTime(h, m)}
+                    >
+                      <Text style={styles.modalItemText}>
+                        {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                ).flat()}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowTimeModal(false)}>
+                <Text style={styles.modalCloseBtnText}>Đóng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </KeyboardAvoidingView>
   );
@@ -256,6 +443,20 @@ const styles = StyleSheet.create({
   form: { backgroundColor: colors.surface, paddingHorizontal: 16, paddingBottom: 10, maxHeight: 400 },
   label: { fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 12, marginBottom: 5 },
   input: { backgroundColor: colors.background, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, fontSize: 14 },
+  dateTimeButton: { 
+    backgroundColor: colors.background, 
+    padding: 12, 
+    borderRadius: 10, 
+    borderWidth: 1, 
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateTimeText: { 
+    fontSize: 14, 
+    color: colors.text, 
+    fontWeight: '600' 
+  },
   resultItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   resultText: { fontSize: 14, color: colors.text },
   selectedPartner: { flexDirection: 'row', justifyContent: 'space-between', padding: 12, backgroundColor: '#F0EFFF', borderRadius: 10, alignItems: 'center' },
@@ -285,4 +486,11 @@ const styles = StyleSheet.create({
   rejectBtn: { backgroundColor: '#F44336' },
   actionBtnText: { color: '#fff', fontWeight: 'bold' },
   empty: { textAlign: 'center', color: colors.textLight, marginTop: 40 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '70%' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text, marginBottom: 15, textAlign: 'center' },
+  modalItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
+  modalItemText: { fontSize: 16, color: colors.text, textAlign: 'center' },
+  modalCloseBtn: { backgroundColor: colors.error, padding: 14, borderRadius: 10, marginTop: 10, alignItems: 'center' },
+  modalCloseBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
 });
